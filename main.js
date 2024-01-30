@@ -1,23 +1,74 @@
-const canvas=document.getElementById("myCanvas");
-canvas.width=200;
+carCanvas.height=window.innerHeight;
+carCanvas.width=200;
+networkCanvas.height=window.innerHeight;
+networkCanvas.width=298;
 
-const ctx = canvas.getContext("2d");
-const road = new Road(canvas.width/2,canvas.width*0.9);
-const car = new Car(road.getLaneCenter(1),100,30,50);
+const carCtx=carCanvas.getContext("2d");
+const networkCtx=networkCanvas.getContext("2d");
+const road=new Road(carCanvas.width/2,carCanvas.width*0.9);
+const N=100;
+const cars=generateCars(N);
+const traffic=[
+   new Car(100,-100,30,50,"DUMMY",1)
+];
+let bestCar=cars[0];
+if(localStorage.getItem("bestBrain")){
+   for(let i=0;i<cars.length;i++){
+      cars[i].brain=JSON.parse(
+         localStorage.getItem("bestBrain"));
+      if(i>0){
+         NeuralNetwork.mutate(cars[i].brain,0.4);
+      }
+   }
+}
 
 animate();
 
 function animate(){
-    car.update(road.borders);
+   for(let i=0;i<traffic.length;i++){
+      traffic[i].update([],[]);
+   }
+   for(let i=0;i<cars.length;i++){
+      cars[i].update(road.borders,traffic);
+   }
+   bestCar=cars.find(
+      c=>c.y==Math.min(
+         ...cars.map(c=>c.y)
+      ));
 
-    canvas.height=window.innerHeight;
+   carCanvas.height=window.innerHeight;
+   networkCanvas.height=window.innerHeight;
+   
+   carCtx.translate(0,-bestCar.y+carCanvas.height*0.7);
+   road.draw(carCtx);
+   for(let i=0;i<traffic.length;i++){
+      traffic[i].draw(carCtx);
+   }
+   carCtx.globalAlpha=0.2;
+   for(let i=0;i<cars.length;i++){
+      cars[i].draw(carCtx);
+   }
+   carCtx.globalAlpha=1;
+   bestCar.draw(carCtx,true);
 
-    ctx.save();
-    ctx.translate(0,-car.y+canvas.height*0.7);
+   Visualizer.drawNetwork(networkCtx,bestCar.brain);
+   
+   requestAnimationFrame(animate);
+}
 
-    road.draw(ctx);
-    car.draw(ctx);
+function generateCars(N){
+   const cars=[];
+   for(let i=1;i<=N;i++){
+      cars.push(new Car(100,100,30,50,"AI"));
+   }
+   return cars;
+}
 
-    ctx.restore();
-    requestAnimationFrame(animate);
+function save(){
+   localStorage.setItem("bestBrain",
+      JSON.stringify(bestCar.brain));
+}
+
+function discard(){
+   localStorage.removeItem("bestBrain");
 }
